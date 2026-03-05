@@ -1,0 +1,9 @@
+{
+  "name": "xss-cors-payload",
+  "version": "1.0.0",
+  "description": "HTTPS server for XSS testing - serves JSON with CORS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

